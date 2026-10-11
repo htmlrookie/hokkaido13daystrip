@@ -79,7 +79,7 @@
             </div>
           </div>
           <div class="text-xs bg-white/20 backdrop-blur px-3 py-2 rounded-xl text-emerald-50">
-            匯率參考：1 JPY ≈ 0.22 TWD
+            匯率參考：1 JPY ≈ 0.21 TWD
           </div>
         </div>
       </div>
@@ -135,19 +135,17 @@
   </main>
 
   <script>
-    // 匯率
     const JPY_TO_TWD = 0.22;
 
-    // 13 天行程資料
     const tripData = [
       {
-        day: "D1", date: "10/22 (四)", title: "抵達新千歲 ➔ 直奔旭川",
+        day: "D1", date: "10/22 (四)", title: "抵達新千歲 ➔ 直奔旭川 AEON",
         driveTime: "~2小時5分", area: "旭川", lat: 43.7706, lon: 142.3650,
         weatherFallback: "秋季常態約 6°C ~ 14°C，傍晚降溫需防風厚外套",
-        routeRaw: "【15:00 航班抵達新千歲機場】 ➔ 租車 ➔ (2小時5分) ➔ 直奔旭川市區飯店休息與晚餐。",
+        routeRaw: "【15:00 航班抵達新千歲機場】 ➔ 租車 ➔ (2小時5分) ➔ 直奔 AEON旭川 採買休息與晚餐。",
         stops: [
           { name: "新千歲機場", note: "15:00 航班抵達，領行李、辦理租車手續" },
-          { name: "旭川市區飯店", note: "直奔飯店 Check-in 休息" },
+          { name: "AEON旭川 (永旺夢樂城旭川站前店)", note: "採買、3F JINS 配眼鏡（10:00-21:00）" },
           { name: "成吉思汗 大黑屋 旭川本店", note: "晚餐必吃炭火烤羊肉" }
         ],
         hotel: { name: "旭川市區飯店", url: "https://maps.app.goo.gl/6EDq6TRhoshLHNCA6" },
@@ -347,7 +345,6 @@
       }
     ];
 
-    // 預設 Excel 記錄的花費初始資料 (若使用者尚未記帳時載入)
     const initialExpenses = [
       { id: 1, day: "D1", category: "住宿", desc: "旭川飯店 (原表預訂金額)", amount: 12450 },
       { id: 2, day: "D4", category: "住宿", desc: "知床宇登呂溫泉 (含晚會席料理)", amount: 27713 },
@@ -362,7 +359,6 @@
       { id: 11, day: "D12", category: "交通", desc: "札幌飯店停車費", amount: 1500 }
     ];
 
-    // 從 localStorage 讀取或載入預設
     let expenses = JSON.parse(localStorage.getItem("hokkaido_expenses")) || initialExpenses;
 
     function saveExpenses() {
@@ -370,7 +366,6 @@
       renderExpenses();
     }
 
-    // 主分頁切換控制
     function switchMainTab(tab) {
       const viewItinerary = document.getElementById("view-itinerary");
       const viewExpenses = document.getElementById("view-expenses");
@@ -394,7 +389,6 @@
       }
     }
 
-    // 新增花費
     function addExpense(e) {
       e.preventDefault();
       const day = document.getElementById("exp-day").value;
@@ -417,7 +411,6 @@
       saveExpenses();
     }
 
-    // 刪除花費
     function deleteExpense(id) {
       if (confirm("確定要刪除這筆花費紀錄嗎？")) {
         expenses = expenses.filter(item => item.id !== id);
@@ -425,7 +418,6 @@
       }
     }
 
-    // 渲染花費分頁
     function renderExpenses() {
       let totalJPY = 0;
       const daysContainer = document.getElementById("expense-days-container");
@@ -479,12 +471,10 @@
         daysContainer.appendChild(dayCard);
       });
 
-      // 更新頂部總計
       document.getElementById("total-jpy").textContent = `¥${totalJPY.toLocaleString()}`;
       document.getElementById("total-twd").textContent = `(約 NT$ ${Math.round(totalJPY * JPY_TO_TWD).toLocaleString()})`;
     }
 
-    // 初始化記帳日期的下拉選單
     const expDaySelect = document.getElementById("exp-day");
     tripData.forEach(item => {
       const opt = document.createElement("option");
@@ -493,7 +483,6 @@
       expDaySelect.appendChild(opt);
     });
 
-    // 天氣代碼轉換
     function getWeatherDesc(code) {
       if (code === 0) return { text: "晴朗", icon: "fa-sun text-amber-500" };
       if ([1, 2, 3].includes(code)) return { text: "晴時多雲", icon: "fa-cloud-sun text-sky-500" };
@@ -504,7 +493,6 @@
       return { text: "多雲", icon: "fa-cloud text-slate-400" };
     }
 
-    // 動態非同步抓取 Open-Meteo 即時氣候
     async function fetchWeatherForDay(item) {
       const weatherDom = document.getElementById(`weather-${item.day}`);
       if (!weatherDom) return;
@@ -555,7 +543,6 @@
       });
     }
 
-    // 渲染上方按鈕
     const nav = document.getElementById("day-nav");
     tripData.forEach((item, idx) => {
       const btn = document.createElement("button");
@@ -578,7 +565,6 @@
       nav.appendChild(btn);
     });
 
-    // 渲染各天行程
     const container = document.getElementById("itinerary-container");
     tripData.forEach(item => {
       const card = document.createElement("section");
