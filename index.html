@@ -78,8 +78,13 @@
               <span class="text-xs text-emerald-200" id="total-twd">(約 NT$ 0)</span>
             </div>
           </div>
-          <div class="text-xs bg-white/20 backdrop-blur px-3 py-2 rounded-xl text-emerald-50">
-            匯率參考：1 JPY ≈ 0.22 TWD
+          <!-- 可自行調整匯率 -->
+          <div class="flex items-center gap-1.5 bg-white/20 backdrop-blur px-3 py-2 rounded-xl text-xs text-emerald-50">
+            <span>1 JPY ≈</span>
+            <input type="number" id="exchange-rate-input" step="0.001" min="0.01" max="1" 
+                   onchange="updateExchangeRate(this.value)"
+                   class="w-16 bg-white/90 text-slate-800 font-bold px-1.5 py-0.5 rounded text-center outline-none focus:ring-2 focus:ring-white" />
+            <span>TWD</span>
           </div>
         </div>
       </div>
@@ -135,7 +140,17 @@
   </main>
 
   <script>
-    const JPY_TO_TWD = 0.22;
+    // 匯率初始化（支援本機儲存與自訂）
+    let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.215;
+
+    function updateExchangeRate(val) {
+      const parsed = parseFloat(val);
+      if (!isNaN(parsed) && parsed > 0) {
+        JPY_TO_TWD = parsed;
+        localStorage.setItem("hokkaido_fx_rate", JPY_TO_TWD);
+        renderExpenses();
+      }
+    }
 
     const tripData = [
       {
@@ -169,15 +184,16 @@
         note: ""
       },
       {
-        day: "D3", date: "10/24 (六)", title: "富良野麵包超人 ➔ 美瑛白鬚瀑布與青池點燈",
+        day: "D3", date: "10/24 (六)", title: "富良野麵包超人與果醬園 ➔ 白鬚瀑布與青池點燈",
         driveTime: "~3小時5分", area: "美瑛 / 富良野", lat: 43.5902, lon: 142.4646,
         weatherFallback: "秋季常態約 4°C ~ 12°C，山區日落後氣溫急降",
         routeRaw: "旭川 ➔ (1小時15分) ➔ 富良野麵包超人專賣店、富良野果醬園共濟農場 ➔ (55分) ➔ 白鬚瀑布 ➔ (5分) ➔ 美瑛青池（剛好趕上 17:00 點燈） ➔ (50分) ➔ 返回旭川市區",
         stops: [
-          { name: "富良野麵包超人專賣店", note: "小孩最愛！附設果醬園共濟農場" },
-          { name: "白鬚瀑布", note: "藍色溪流名景，步道平緩好走" },
-          { name: "美瑛青池", note: "剛好趕上 17:00 點燈夢幻水景" },
-          { name: "旭川市區", note: "返回市區晚餐" }
+          { name: "富良野麵包超人專賣店", query: "富良野 麵包超人專賣店", note: "小孩最愛！周邊商品與拍照熱點" },
+          { name: "富良野果醬園 共濟農場", query: "富良野ジャム園 共済農場", note: "天然果醬試吃、麓鄉展望台自然美景" },
+          { name: "白鬚瀑布", query: "白鬚瀑布", note: "藍色溪流名景，步道平緩好走" },
+          { name: "美瑛青池", query: "美瑛青池", note: "剛好趕上 17:00 點燈夢幻水景" },
+          { name: "旭川市區", query: "旭川市區", note: "返回市區晚餐" }
         ],
         hotel: { name: "續住旭川市區飯店", url: "https://maps.app.goo.gl/6EDq6TRhoshLHNCA6" },
         food: [],
@@ -423,6 +439,11 @@
       const daysContainer = document.getElementById("expense-days-container");
       daysContainer.innerHTML = "";
 
+      const fxInput = document.getElementById("exchange-rate-input");
+      if (fxInput && fxInput.value !== String(JPY_TO_TWD)) {
+        fxInput.value = JPY_TO_TWD;
+      }
+
       tripData.forEach(dayItem => {
         const dayExpenses = expenses.filter(e => e.day === dayItem.day);
         const daySum = dayExpenses.reduce((sum, e) => sum + e.amount, 0);
@@ -443,7 +464,10 @@
               <span class="text-slate-800 font-medium">${item.desc}</span>
             </div>
             <div class="flex items-center gap-3">
-              <span class="font-bold text-slate-900">¥${item.amount.toLocaleString()}</span>
+              <div class="text-right">
+                <span class="font-bold text-slate-900">¥${item.amount.toLocaleString()}</span>
+                <span class="text-[11px] text-slate-400 block">≈ NT$ ${Math.round(item.amount * JPY_TO_TWD).toLocaleString()}</span>
+              </div>
               <button onclick="deleteExpense(${item.id})" class="text-slate-400 hover:text-red-500 p-1 transition" title="刪除">
                 <i class="fa-solid fa-trash-can text-xs"></i>
               </button>
@@ -460,6 +484,7 @@
             <div class="text-right">
               <span class="text-xs text-slate-500">當日小計：</span>
               <span class="text-sm font-bold text-emerald-700">¥${daySum.toLocaleString()}</span>
+              <span class="text-xs text-slate-400 font-medium ml-1">(NT$ ${Math.round(daySum * JPY_TO_TWD).toLocaleString()})</span>
             </div>
           </div>
           <div class="p-4">
@@ -582,7 +607,8 @@
       if (item.amenities.shopping) badgeList.push('<span class="px-2 py-0.5 rounded bg-pink-50 text-pink-700 border border-pink-200 text-xs"><i class="fa-solid fa-bag-shopping mr-1"></i>購物行程</span>');
 
       const stopsHtml = item.stops.map((stop) => {
-        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.name)}`;
+        const searchQuery = stop.query || stop.name;
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(searchQuery)}`;
         return `
           <div class="relative pl-6 pb-4 border-l-2 border-sky-200 last:border-transparent last:pb-0">
             <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-sky-500 ring-4 ring-sky-100"></span>
