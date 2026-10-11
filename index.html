@@ -590,4 +590,121 @@
       badgeList.push(item.amenities.dinner ? '<span class="px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-200 text-xs">含晚餐</span>' : '<span class="px-2 py-0.5 rounded bg-slate-100 text-slate-500 text-xs">無晚餐</span>');
       if (item.amenities.laundry) badgeList.push('<span class="px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-200 text-xs"><i class="fa-solid fa-shirt mr-1"></i>可洗衣</span>');
       if (item.amenities.parking) {
-        const p
+        const pText = typeof item.amenities.parking === 'string' ? item.amenities.parking : '免費停車';
+        badgeList.push(`<span class="px-2 py-0.5 rounded bg-amber-50 text-amber-700 border border-amber-200 text-xs"><i class="fa-solid fa-square-parking mr-1"></i>${pText}</span>`);
+      }
+      if (item.amenities.shopping) badgeList.push('<span class="px-2 py-0.5 rounded bg-pink-50 text-pink-700 border border-pink-200 text-xs"><i class="fa-solid fa-bag-shopping mr-1"></i>購物行程</span>');
+
+      const stopsHtml = item.stops.map((stop) => {
+        const mapUrl = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(stop.name)}`;
+        return `
+          <div class="relative pl-6 pb-4 border-l-2 border-sky-200 last:border-transparent last:pb-0">
+            <span class="absolute -left-[9px] top-0 w-4 h-4 rounded-full bg-sky-500 ring-4 ring-sky-100"></span>
+            <div class="bg-slate-50 p-3 rounded-xl border border-slate-100">
+              <div class="flex items-center justify-between gap-2">
+                <h4 class="font-semibold text-slate-800 text-sm md:text-base">${stop.name}</h4>
+                <a href="${mapUrl}" target="_blank" rel="noopener noreferrer"
+                   class="inline-flex items-center gap-1 text-xs px-2.5 py-1 bg-white hover:bg-sky-50 text-sky-600 border border-sky-300 rounded-lg shadow-2xs font-medium transition shrink-0">
+                  <i class="fa-solid fa-location-dot text-red-500"></i> 地圖/評論
+                </a>
+              </div>
+              ${stop.note ? `<p class="text-xs text-slate-600 mt-1">${stop.note}</p>` : ''}
+            </div>
+          </div>
+        `;
+      }).join("");
+
+      let foodHtml = "";
+      if (item.food && item.food.length > 0) {
+        foodHtml = `
+          <div class="mt-4 pt-4 border-t border-slate-100">
+            <div class="text-xs font-bold text-slate-500 mb-2 flex items-center gap-1">
+              <i class="fa-solid fa-utensils text-orange-500"></i> 當日重點美食推介
+            </div>
+            <div class="space-y-2">
+              ${item.food.map(f => `
+                <div class="flex items-center justify-between bg-orange-50/60 border border-orange-100 px-3 py-2 rounded-xl">
+                  <span class="text-xs md:text-sm font-medium text-slate-800">${f.name}</span>
+                  <a href="${f.url}" target="_blank" rel="noopener noreferrer"
+                     class="text-xs bg-white text-orange-600 border border-orange-200 hover:bg-orange-100 px-2 py-1 rounded-md font-medium shrink-0">
+                    查看菜單/評價 ➔
+                  </a>
+                </div>
+              `).join("")}
+            </div>
+          </div>
+        `;
+      }
+
+      card.innerHTML = `
+        <div class="p-4 md:p-5 border-b border-slate-100 bg-gradient-to-r from-sky-50/60 to-white">
+          <div class="flex flex-wrap items-center justify-between gap-2">
+            <div class="flex items-center gap-2">
+              <span class="px-2.5 py-1 rounded-lg bg-sky-600 text-white font-bold text-sm shadow-xs">${item.day}</span>
+              <span class="text-sm font-semibold text-slate-600">${item.date}</span>
+              <span class="text-xs px-2 py-0.5 rounded-full bg-slate-200/70 text-slate-700">${item.area}</span>
+            </div>
+            <div class="flex items-center gap-3 text-xs text-slate-600">
+              <span class="inline-flex items-center gap-1 font-medium bg-amber-100/70 text-amber-900 px-2 py-1 rounded-md">
+                <i class="fa-solid fa-car text-amber-600"></i> ${item.driveTime}
+              </span>
+            </div>
+          </div>
+          <h3 class="text-base md:text-lg font-bold text-slate-800 mt-2">${item.title}</h3>
+          
+          <div id="weather-${item.day}" class="mt-2 text-xs bg-sky-50 border border-sky-200/70 px-3 py-2 rounded-lg min-h-[38px] flex items-center">
+            <span class="text-slate-400 inline-flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin"></i> 正在連線更新 ${item.area} 即時氣候...</span>
+          </div>
+
+          <div class="flex flex-wrap gap-1.5 mt-2.5">
+            ${badgeList.join("")}
+          </div>
+        </div>
+
+        <div class="p-4 md:p-5 space-y-4">
+          <div class="text-xs text-slate-600 bg-slate-100/80 p-2.5 rounded-lg leading-relaxed">
+            <span class="font-semibold text-slate-700">📍 細部路程節點：</span>${item.routeRaw}
+          </div>
+
+          <div>
+            <h4 class="text-xs font-bold text-slate-400 uppercase tracking-wider mb-3">當日行經景點與放電地標</h4>
+            <div class="space-y-1">
+              ${stopsHtml}
+            </div>
+          </div>
+
+          ${foodHtml}
+
+          ${item.hotel && item.hotel.url ? `
+            <div class="mt-4 pt-3 border-t border-slate-100 flex items-center justify-between bg-indigo-50/50 border border-indigo-100 p-3 rounded-xl">
+              <div>
+                <div class="text-xs text-indigo-600 font-semibold flex items-center gap-1">
+                  <i class="fa-solid fa-bed"></i> 當晚下榻
+                </div>
+                <div class="text-sm font-bold text-slate-800 mt-0.5">${item.hotel.name}</div>
+              </div>
+              <a href="${item.hotel.url}" target="_blank" rel="noopener noreferrer"
+                 class="text-xs px-3 py-1.5 bg-indigo-600 text-white rounded-lg hover:bg-indigo-700 shadow-xs font-medium transition">
+                導航至飯店
+              </a>
+            </div>
+          ` : ''}
+
+          ${item.note ? `
+            <div class="text-xs text-amber-800 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg flex items-start gap-1.5">
+              <i class="fa-solid fa-circle-exclamation mt-0.5 text-amber-600"></i>
+              <span><strong>備註提醒：</strong>${item.note}</span>
+            </div>
+          ` : ''}
+        </div>
+      `;
+      container.appendChild(card);
+    });
+
+    window.addEventListener("DOMContentLoaded", () => {
+      fetchAllWeather();
+      renderExpenses();
+    });
+  </script>
+</body>
+</html>
