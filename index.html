@@ -42,7 +42,7 @@
           <i class="fa-solid fa-map-location-dot"></i> 行程總覽
         </button>
         <button id="tab-btn-expenses" onclick="switchMainTab('expenses')" class="flex-1 py-2.5 text-center text-xs md:text-sm font-semibold border-b-2 border-transparent text-sky-200 hover:text-white flex items-center justify-center gap-1.5 transition">
-          <i class="fa-solid fa-wallet"></i> 記帳花費
+          <i class="fa-solid fa-wallet"></i> 記帳花費 <span id="sync-status-dot" class="w-2 h-2 rounded-full bg-emerald-400 inline-block"></span>
         </button>
       </div>
     </div>
@@ -72,13 +72,18 @@
       <div class="bg-gradient-to-r from-emerald-600 to-teal-700 text-white rounded-2xl p-5 shadow-sm">
         <div class="flex flex-wrap items-center justify-between gap-3">
           <div>
-            <p class="text-xs text-emerald-100 font-medium">整趟旅程累積總支出</p>
+            <div class="flex items-center gap-2">
+              <p class="text-xs text-emerald-100 font-medium">整趟旅程累積總支出 (全團同步)</p>
+              <button onclick="loadExpensesFromCloud()" title="手動同步最新金額" class="text-xs bg-white/20 hover:bg-white/30 px-2 py-0.5 rounded-full transition inline-flex items-center gap-1">
+                <i id="cloud-refresh-icon" class="fa-solid fa-rotate text-[10px]"></i> 同步
+              </button>
+            </div>
             <div class="flex items-baseline gap-2 mt-1">
               <span class="text-2xl md:text-3xl font-extrabold" id="total-jpy">¥0</span>
               <span class="text-xs text-emerald-200" id="total-twd">(約 NT$ 0)</span>
             </div>
           </div>
-          <!-- 可自行調整匯率 -->
+          <!-- 匯率自訂 -->
           <div class="flex items-center gap-1.5 bg-white/20 backdrop-blur px-3 py-2 rounded-xl text-xs text-emerald-50">
             <span>1 JPY ≈</span>
             <input type="number" id="exchange-rate-input" step="0.001" min="0.01" max="1" 
@@ -92,7 +97,7 @@
       <!-- 快速記帳表單 -->
       <div class="bg-white rounded-2xl shadow-sm border border-slate-200 p-4 md:p-5">
         <h3 class="text-sm md:text-base font-bold text-slate-800 flex items-center gap-2 mb-3">
-          <i class="fa-solid fa-plus-circle text-emerald-600"></i> 新增當日消費項目
+          <i class="fa-solid fa-cloud-arrow-up text-emerald-600"></i> 新增支出項目 (同步至雲端)
         </h3>
         <form id="expense-form" onsubmit="addExpense(event)" class="grid grid-cols-1 md:grid-cols-12 gap-3 text-xs md:text-sm">
           <div class="md:col-span-2">
@@ -122,7 +127,7 @@
             <div class="flex gap-2">
               <input type="number" id="exp-amount" placeholder="0" min="1" required
                      class="w-full bg-slate-50 border border-slate-300 rounded-lg p-2 focus:ring-2 focus:ring-emerald-500" />
-              <button type="submit" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg transition whitespace-nowrap">
+              <button type="submit" id="submit-exp-btn" class="bg-emerald-600 hover:bg-emerald-700 text-white font-bold px-4 py-2 rounded-lg transition whitespace-nowrap">
                 新增
               </button>
             </div>
@@ -140,7 +145,13 @@
   </main>
 
   <script>
-    // 匯率初始化（支援本機儲存與自訂）
+    // ==========================================
+    // 🔑 請將部署好的 Google Apps Script 網址貼在下方引號中：
+    // 若維持空字串 ""，系統會自動使用手機本機快取模式
+    // ==========================================
+    const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbzasIIi3W3JXXloM8VspDygEP2USgDaOR6XP_dPXPZEjU1kR7oP07tKDnpiDnR47ska/exec"; 
+
+    // 匯率初始化
     let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.215;
 
     function updateExchangeRate(val) {
@@ -377,9 +388,47 @@
 
     let expenses = JSON.parse(localStorage.getItem("hokkaido_expenses")) || initialExpenses;
 
-    function saveExpenses() {
+    // 從 Google Apps Script 雲端同步抓取
+    async function loadExpensesFromCloud() {
+      if (!CLOUD_API_URL) {
+        renderExpenses();
+        return;
+      }
+      const icon = document.getElementById("cloud-refresh-icon");
+      if (icon) icon.classList.add("fa-spin");
+      try {
+        const res = await fetch(CLOUD_API_URL);
+        const json = await res.json();
+        if (json.status === "success" && Array.isArray(json.data) && json.data.length > 0) {
+          expenses = json.data;
+          localStorage.setItem("hokkaido_expenses", JSON.stringify(expenses));
+          document.getElementById("sync-status-dot").className = "w-2 h-2 rounded-full bg-emerald-400 inline-block";
+        }
+      } catch (err) {
+        console.warn("雲端讀取失敗，使用本機資料", err);
+        document.getElementById("sync-status-dot").className = "w-2 h-2 rounded-full bg-amber-400 inline-block";
+      } finally {
+        if (icon) setTimeout(() => icon.classList.remove("fa-spin"), 500);
+        renderExpenses();
+      }
+    }
+
+    // 儲存（本機 + 雲端非同步上傳）
+    async function saveExpenses(actionType, payload) {
       localStorage.setItem("hokkaido_expenses", JSON.stringify(expenses));
       renderExpenses();
+
+      if (!CLOUD_API_URL) return;
+
+      try {
+        await fetch(CLOUD_API_URL, {
+          method: "POST",
+          headers: { "Content-Type": "text/plain;charset=utf-8" },
+          body: JSON.stringify({ action: actionType, ...payload })
+        });
+      } catch (err) {
+        console.error("雲端同步失敗", err);
+      }
     }
 
     function switchMainTab(tab) {
@@ -401,11 +450,11 @@
         subnavDays.classList.add("hidden");
         btnExpenses.className = "flex-1 py-2.5 text-center text-xs md:text-sm font-bold border-b-2 border-white text-white flex items-center justify-center gap-1.5 transition";
         btnItinerary.className = "flex-1 py-2.5 text-center text-xs md:text-sm font-semibold border-b-2 border-transparent text-sky-200 hover:text-white flex items-center justify-center gap-1.5 transition";
-        renderExpenses();
+        loadExpensesFromCloud();
       }
     }
 
-    function addExpense(e) {
+    async function addExpense(e) {
       e.preventDefault();
       const day = document.getElementById("exp-day").value;
       const category = document.getElementById("exp-category").value;
@@ -414,23 +463,25 @@
 
       if (!desc || isNaN(amount) || amount <= 0) return;
 
-      expenses.push({
+      const newItem = {
         id: Date.now(),
         day,
         category,
         desc,
         amount
-      });
+      };
 
+      expenses.push(newItem);
       document.getElementById("exp-desc").value = "";
       document.getElementById("exp-amount").value = "";
-      saveExpenses();
+      
+      await saveExpenses("add", { item: newItem });
     }
 
-    function deleteExpense(id) {
-      if (confirm("確定要刪除這筆花費紀錄嗎？")) {
-        expenses = expenses.filter(item => item.id !== id);
-        saveExpenses();
+    async function deleteExpense(id) {
+      if (confirm("確定要刪除這筆花費紀錄嗎？（所有人皆會同步刪除）")) {
+        expenses = expenses.filter(item => String(item.id) !== String(id));
+        await saveExpenses("delete", { id: id });
       }
     }
 
@@ -468,7 +519,7 @@
                 <span class="font-bold text-slate-900">¥${item.amount.toLocaleString()}</span>
                 <span class="text-[11px] text-slate-400 block">≈ NT$ ${Math.round(item.amount * JPY_TO_TWD).toLocaleString()}</span>
               </div>
-              <button onclick="deleteExpense(${item.id})" class="text-slate-400 hover:text-red-500 p-1 transition" title="刪除">
+              <button onclick="deleteExpense('${item.id}')" class="text-slate-400 hover:text-red-500 p-1 transition" title="刪除">
                 <i class="fa-solid fa-trash-can text-xs"></i>
               </button>
             </div>
@@ -715,7 +766,7 @@
 
     window.addEventListener("DOMContentLoaded", () => {
       fetchAllWeather();
-      renderExpenses();
+      loadExpensesFromCloud();
     });
   </script>
 </body>
