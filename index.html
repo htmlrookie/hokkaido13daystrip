@@ -152,7 +152,7 @@
     const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbwGsmKeLe1vPMJfv9hUD9fY9QdZ9i_05Bloikf8FnWSfb3HIe_Ln9l_Pz0ryyDkvLdb/exec"; 
 
     // 匯率初始化
-    let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.215;
+    let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.21;
 
     function updateExchangeRate(val) {
       const parsed = parseFloat(val);
@@ -165,10 +165,10 @@
 
     const tripData = [
       {
-        day: "D1", date: "10/22 (四)", title: "抵達新千歲 ➔ 直奔旭川 AEON",
+        day: "D1", date: "10/22 (四)", title: "出發 ➔ 抵達新千歲 ➔ 直奔旭川 AEON",
         driveTime: "~2小時5分", area: "旭川", lat: 43.7706, lon: 142.3650,
         weatherFallback: "秋季常態約 6°C ~ 14°C，傍晚降溫需防風厚外套",
-        routeRaw: "【15:00 航班抵達新千歲機場】 ➔ 租車 ➔ (2小時5分) ➔ 直奔 AEON旭川 採買休息與晚餐。",
+        routeRaw: "10:10 桃園機場T2起飛 ➔ 15:00 航班抵達新千歲機場 ➔ 租車 ➔ (2小時5分) ➔ 直奔 AEON旭川 採買休息與晚餐。",
         stops: [
           { name: "新千歲機場", note: "15:00 航班抵達，領行李、辦理租車手續" },
           { name: "AEON旭川 (永旺夢樂城旭川站前店)", note: "採買、3F JINS 配眼鏡（10:00-21:00）" },
@@ -360,7 +360,7 @@
         day: "D13", date: "11/03 (二)", title: "新千歲機場還車 ➔ 開心登機返台",
         driveTime: "~50分鐘", area: "千歲機場", lat: 42.7933, lon: 141.6923,
         weatherFallback: "秋季常態約 5°C ~ 12°C",
-        routeRaw: "札幌市區 ➔ (50分) ➔ 新千歲機場（10:00前辦理還車，中午開心登機返台）",
+        routeRaw: "札幌市區 ➔ (50分) ➔ 新千歲機場（10:00前辦理還車）➔ 15:20新千歲機場T1登機返台 ➔ 18:55抵達桃園機場T2",
         stops: [
           { name: "新千歲機場 租車還車站", note: "10:00 前加滿油完成還車" },
           { name: "新千歲機場 國內線伴手禮大道 (2F)", query: "新千歲機場 國內線 伴手禮", note: "北海道最強甜點齊聚！KINOTOYA、美瑛選果、北菓樓" },
