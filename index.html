@@ -145,14 +145,9 @@
   </main>
 
   <script>
-    // ==========================================
-    // 🔑 請將部署好的 Google Apps Script 網址貼在下方引號中：
-    // 若維持空字串 ""，系統會自動使用手機本機快取模式
-    // ==========================================
-    const CLOUD_API_URL = "https://script.google.com/macros/s/AKfycbwGsmKeLe1vPMJfv9hUD9fY9QdZ9i_05Bloikf8FnWSfb3HIe_Ln9l_Pz0ryyDkvLdb/exec"; 
+    const CLOUD_API_URL = ""; 
 
-    // 匯率初始化
-    let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.21;
+    let JPY_TO_TWD = parseFloat(localStorage.getItem("hokkaido_fx_rate")) || 0.215;
 
     function updateExchangeRate(val) {
       const parsed = parseFloat(val);
@@ -389,7 +384,6 @@
 
     let expenses = JSON.parse(localStorage.getItem("hokkaido_expenses")) || initialExpenses;
 
-    // 從 Google Apps Script 雲端同步抓取
     async function loadExpensesFromCloud() {
       if (!CLOUD_API_URL) {
         renderExpenses();
@@ -414,7 +408,6 @@
       }
     }
 
-    // 儲存（本機 + 雲端非同步上傳）
     async function saveExpenses(actionType, payload) {
       localStorage.setItem("hokkaido_expenses", JSON.stringify(expenses));
       renderExpenses();
@@ -570,12 +563,20 @@
       return { text: "多雲", icon: "fa-cloud text-slate-400" };
     }
 
+    // 格式化時間 (2026-10-22T06:05 -> 06:05)
+    function formatTime(isoStr) {
+      if (!isoStr) return "";
+      const parts = isoStr.split("T");
+      return parts.length > 1 ? parts[1].substring(0, 5) : isoStr;
+    }
+
     async function fetchWeatherForDay(item) {
       const weatherDom = document.getElementById(`weather-${item.day}`);
       if (!weatherDom) return;
 
       try {
-        const url = `https://api.open-meteo.com/v1/forecast?latitude=${item.lat}&longitude=${item.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max&timezone=Asia%2FTokyo`;
+        // 請求中加入 sunrise 與 sunset 參數
+        const url = `https://api.open-meteo.com/v1/forecast?latitude=${item.lat}&longitude=${item.lon}&current=temperature_2m,relative_humidity_2m,weather_code,wind_speed_10m&daily=temperature_2m_max,temperature_2m_min,precipitation_probability_max,sunrise,sunset&timezone=Asia%2FTokyo`;
         const res = await fetch(url);
         if (!res.ok) throw new Error("API failed");
         const data = await res.json();
@@ -589,24 +590,44 @@
         const minTemp = Math.round(daily.temperature_2m_min[0]);
         const rainProb = daily.precipitation_probability_max ? daily.precipitation_probability_max[0] : null;
 
+        const sunriseStr = daily.sunrise && daily.sunrise[0] ? formatTime(daily.sunrise[0]) : "";
+        const sunsetStr = daily.sunset && daily.sunset[0] ? formatTime(daily.sunset[0]) : "";
+
         weatherDom.innerHTML = `
-          <div class="flex items-center gap-1.5 flex-wrap">
-            <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
-              <i class="fa-solid fa-signal text-[9px]"></i> 即時連線
-            </span>
-            <span class="inline-flex items-center gap-1 font-semibold text-sky-900">
-              <i class="fa-solid ${weatherInfo.icon}"></i> ${weatherInfo.text}
-            </span>
-            <span class="font-bold text-slate-800 text-sm">${curTemp}°C</span>
-            <span class="text-slate-500 text-xs">(${minTemp}°C ~ ${maxTemp}°C)</span>
-            ${rainProb !== null ? `<span class="text-blue-600 text-xs font-medium"><i class="fa-solid fa-umbrella text-[10px]"></i> 降雨率 ${rainProb}%</span>` : ''}
+          <div class="flex items-center justify-between gap-2 flex-wrap w-full">
+            <div class="flex items-center gap-1.5 flex-wrap">
+              <span class="inline-flex items-center gap-1 px-1.5 py-0.5 rounded bg-emerald-100 text-emerald-800 text-[10px] font-bold">
+                <i class="fa-solid fa-signal text-[9px]"></i> 即時
+              </span>
+              <span class="inline-flex items-center gap-1 font-semibold text-sky-900">
+                <i class="fa-solid ${weatherInfo.icon}"></i> ${weatherInfo.text}
+              </span>
+              <span class="font-bold text-slate-800 text-sm">${curTemp}°C</span>
+              <span class="text-slate-500 text-xs">(${minTemp}°C ~ ${maxTemp}°C)</span>
+              ${rainProb !== null ? `<span class="text-blue-600 text-xs font-medium"><i class="fa-solid fa-umbrella text-[10px]"></i> 降雨率 ${rainProb}%</span>` : ''}
+            </div>
+
+            <!-- 日出日落標籤 -->
+            ${sunriseStr && sunsetStr ? `
+              <div class="flex items-center gap-2 text-[11px] text-amber-900 bg-amber-50/90 border border-amber-200/80 px-2 py-0.5 rounded-md font-medium shrink-0">
+                <span>🌅 日出 ${sunriseStr}</span>
+                <span class="text-amber-300">|</span>
+                <span>🌇 日落 ${sunsetStr}</span>
+              </div>
+            ` : ''}
           </div>
         `;
       } catch (err) {
+        // 離線回退顯示
         weatherDom.innerHTML = `
-          <div class="flex items-center gap-1.5 text-slate-600">
-            <i class="fa-solid fa-cloud-sun text-sky-500"></i>
-            <span><strong>氣候參考：</strong>${item.weatherFallback}</span>
+          <div class="flex items-center justify-between gap-2 flex-wrap w-full text-slate-600">
+            <div class="flex items-center gap-1.5">
+              <i class="fa-solid fa-cloud-sun text-sky-500"></i>
+              <span><strong>氣候參考：</strong>${item.weatherFallback}</span>
+            </div>
+            <div class="text-[11px] text-amber-800 bg-amber-50 border border-amber-200/60 px-2 py-0.5 rounded font-medium">
+              ${item.sunFallback || '約 06:05 日出 · 16:35 日落'}
+            </div>
           </div>
         `;
       }
@@ -700,6 +721,17 @@
         `;
       }
 
+      let noteHtml = "";
+      if (item.note) {
+        const formattedNote = item.note.replace(/\n/g, '<br/>');
+        noteHtml = `
+          <div class="text-xs text-amber-900 bg-amber-50/90 border border-amber-200/90 p-3 rounded-xl flex items-start gap-2 leading-relaxed">
+            <i class="fa-solid fa-circle-exclamation mt-0.5 text-amber-600 shrink-0"></i>
+            <div>${formattedNote}</div>
+          </div>
+        `;
+      }
+
       card.innerHTML = `
         <div class="p-4 md:p-5 border-b border-slate-100 bg-gradient-to-r from-sky-50/60 to-white">
           <div class="flex flex-wrap items-center justify-between gap-2">
@@ -716,8 +748,9 @@
           </div>
           <h3 class="text-base md:text-lg font-bold text-slate-800 mt-2">${item.title}</h3>
           
+          <!-- 即時天氣 + 日出日落 -->
           <div id="weather-${item.day}" class="mt-2 text-xs bg-sky-50 border border-sky-200/70 px-3 py-2 rounded-lg min-h-[38px] flex items-center">
-            <span class="text-slate-400 inline-flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin"></i> 正在連線更新 ${item.area} 即時氣候...</span>
+            <span class="text-slate-400 inline-flex items-center gap-1.5"><i class="fa-solid fa-spinner fa-spin"></i> 正在連線更新 ${item.area} 即時氣候與日照時間...</span>
           </div>
 
           <div class="flex flex-wrap gap-1.5 mt-2.5">
@@ -754,12 +787,7 @@
             </div>
           ` : ''}
 
-          ${item.note ? `
-            <div class="text-xs text-amber-800 bg-amber-50/80 border border-amber-200 p-2.5 rounded-lg flex items-start gap-1.5">
-              <i class="fa-solid fa-circle-exclamation mt-0.5 text-amber-600"></i>
-              <span><strong>備註提醒：</strong>${item.note}</span>
-            </div>
-          ` : ''}
+          ${noteHtml}
         </div>
       `;
       container.appendChild(card);
